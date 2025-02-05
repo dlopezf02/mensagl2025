@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template para crear una VPC con subredes públicas y privadas, IGW, NAT Gateway, tablas de rutas y grupos de seguridad.
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.216.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: vpc-mensagl-2025-DiegoL-vpc
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.216.1.0/24
+      AvailabilityZone: !Select 
+        - 0
+        - !GetAZs 
+          Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub vpc-mensagl-2025-DiegoL-subnet-public1-${!Select [0, !GetAZs [ !Ref AWS::Region ]]}
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.216.2.0/24
+      AvailabilityZone: !Select 
+        - 1
+        - !GetAZs 
+          Ref: AWS::Region
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub vpc-mensagl-2025-DiegoL-subnet-public2-${!Select [1, !GetAZs [ !Ref AWS::Region ]]}
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.216.3.0/24
+      AvailabilityZone: !Select 
+        - 0
+        - !GetAZs 
+          Ref: AWS::Region
+      Tags:
+        - Key: Name
+          Value: !Sub vpc-mensagl-2025-DiegoL-subnet-private1-${!Select [0, !GetAZs [ !Ref AWS::Region ]]}
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.216.4.0/24
+      AvailabilityZone: !Select 
+        - 1
+        - !GetAZs 
+          Ref: AWS::Region
+      Tags:
+        - Key: Name
+          Value: !Sub vpc-mensagl-2025-DiegoL-subnet-private2-${!Select [1, !GetAZs [ !Ref AWS::Region ]]}
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: vpc-mensagl-2025-DiegoL-igw
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: vpc-mensagl-2025-DiegoL-rtb-public
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: vpc-mensagl-2025-DiegoL-eip-${!Select [0, !GetAZs [ !Ref AWS::Region ]]}
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: vpc-mensagl-2025-DiegoL-nat-public1-${!Select [0, !GetAZs [ !Ref AWS::Region ]]}
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: vpc-mensagl-2025-DiegoL-rtb-private1-${!Select [0, !GetAZs [ !Ref AWS::Region ]]}
+    DependsOn: NATGateway
+
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: vpc-mensagl-2025-DiegoL-rtb-private2-${!Select [1, !GetAZs [ !Ref AWS::Region ]]}
+    DependsOn: NATGateway
+
+  PrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable2
+
+  SecurityGroupProxy:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Proxy-inverso
+      GroupDescription: Mensagl Security group
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Proxy-inverso
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  SecurityGroupXMPP:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Servidor-Mensajeria
+      GroupDescription: Mensagl Security group
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Servidor-Mensajeria
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 1000
+          ToPort: 1000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5269
+          ToPort: 5269
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 4443
+          ToPort: 4443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5281
+          ToPort: 5281
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5280
+          ToPort: 5280
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5347
+          ToPort: 5347
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5222
+          ToPort: 5222
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 12345
+          ToPort: 12345
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+
+  SecurityGroupMySQL:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Servidor-SGBD
+      GroupDescription: Mensagl Security group
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Servidor-SGBD
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+
+  SecurityGroupWordPress:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Servidor-ticketing
+      GroupDescription: Mensagl Security group
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Servidor-ticketing
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+  VPCId:
+    Description: ID de la VPC creada
+    Value: !Ref VPC
+  PublicSubnet1Id:
+    Description: ID de la subred pública 1
+    Value: !Ref PublicSubnet1
+  PublicSubnet2Id:
+    Description: ID de la subred pública 2
+    Value: !Ref PublicSubnet2
+  PrivateSubnet1Id:
+    Description: ID de la subred privada 1
+    Value: !Ref PrivateSubnet1
+  PrivateSubnet2Id:
+    Description: ID de la subred privada 2
+    Value: !Ref PrivateSubnet2
+  NATGatewayId:
+    Description: ID de la puerta de enlace NAT
+    Value: !Ref NATGateway
+  SecurityGroupProxyId:
+    Description: ID del grupo de seguridad Proxy-inverso
+    Value: !Ref SecurityGroupProxy
+  SecurityGroupXMPPId:
+    Description: ID del grupo de seguridad Servidor-Mensajeria
+    Value: !Ref SecurityGroupXMPP
+  SecurityGroupMySQLId:
+    Description: ID del grupo de seguridad Servidor-SGBD
+    Value: !Ref SecurityGroupMySQL
+  SecurityGroupWordPressId:
+    Description: ID del grupo de seguridad Servidor-ticketing
+    Value: !Ref SecurityGroupWordPress
