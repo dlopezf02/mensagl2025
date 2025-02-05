@@ -67,10 +67,10 @@ SUBNET_PUBLIC2=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block "10.216.2.0
 aws ec2 modify-subnet-attribute --subnet-id $SUBNET_PUBLIC2 --map-public-ip-on-launch
 
 # Private Subnet 1
-SUBNET_PRIVATE1=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block "10.0.3.0/24" --availability-zone $AVAILABILITY_ZONE1 --tag-specifications "ResourceType=subnet,Tags=[{Key=Name,Value=${VPC_NAME}-subnet-private1-${AVAILABILITY_ZONE1}}]" --query 'Subnet.SubnetId' --output text)
+SUBNET_PRIVATE1=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block "10.216.3.0/24" --availability-zone $AVAILABILITY_ZONE1 --tag-specifications "ResourceType=subnet,Tags=[{Key=Name,Value=${VPC_NAME}-subnet-private1-${AVAILABILITY_ZONE1}}]" --query 'Subnet.SubnetId' --output text)
 
 # Private Subnet 2
-SUBNET_PRIVATE2=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block "10.0.4.0/24" --availability-zone $AVAILABILITY_ZONE2 --tag-specifications "ResourceType=subnet,Tags=[{Key=Name,Value=${VPC_NAME}-subnet-private2-${AVAILABILITY_ZONE2}}]" --query 'Subnet.SubnetId' --output text)
+SUBNET_PRIVATE2=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block "10.216.4.0/24" --availability-zone $AVAILABILITY_ZONE2 --tag-specifications "ResourceType=subnet,Tags=[{Key=Name,Value=${VPC_NAME}-subnet-private2-${AVAILABILITY_ZONE2}}]" --query 'Subnet.SubnetId' --output text)
 # Create Internet Gateway and attach to the VPC
 IGW_ID=$(aws ec2 create-internet-gateway --tag-specifications "ResourceType=internet-gateway,Tags=[{Key=Name,Value=${VPC_NAME}-igw}]" --query 'InternetGateway.InternetGatewayId' --output text)
 aws ec2 attach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID
@@ -363,7 +363,7 @@ echo "SSH KEYS !";
 INSTANCE_NAME="PROXY-1"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PUBLIC1}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_PROXY}"      # Security Group ID
-PRIVATE_IP="10.0.1.10"                 # Private IP for the instance
+PRIVATE_IP="10.216.1.10"                 # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
@@ -406,13 +406,13 @@ echo "Installing and configuring NGINX..."
 cat <<CONFIG > /etc/nginx/sites-available/proxy_site
 # HTTP Reverse Proxy Configuration
 upstream backend_meets {
-    server 10.0.3.100:443;
-    server 10.0.3.200:443;
+    server 10.216.3.100:443;
+    server 10.216.3.200:443;
 }
 
 upstream backend_xmpp {
-    server 10.0.3.100:12345;
-    server 10.0.3.200:12345;
+    server 10.216.3.100:12345;
+    server 10.216.3.200:12345;
 }
 server {
     listen 80;
@@ -500,18 +500,18 @@ rm /etc/nginx/sites-enabled/default
 cat <<CONFIG2 >> /etc/nginx/nginx.conf
 stream {
     upstream backend_xmpp_5222 {
-        server 10.0.3.100:5222;
-        server 10.0.3.200:5222;
+        server 10.216.3.100:5222;
+        server 10.216.3.200:5222;
     }
 
     upstream backend_xmpp_5280 {
-        server 10.0.3.100:5280;
-        server 10.0.3.200:5280;
+        server 10.216.3.100:5280;
+        server 10.216.3.200:5280;
     }
 
     upstream backend_xmpp_5281 {
-        server 10.0.3.100:5281;
-        server 10.0.3.200:5281;
+        server 10.216.3.100:5281;
+        server 10.216.3.200:5281;
     }
 
     server {
@@ -563,7 +563,7 @@ echo "${INSTANCE_NAME} created"
 INSTANCE_NAME="PROXY-2"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PUBLIC2}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_PROXY}"  # Security Group ID
-PRIVATE_IP="10.0.2.10"                # Private IP for the instance
+PRIVATE_IP="10.216.2.10"                # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
@@ -602,8 +602,8 @@ apt-get install nginx -y
 apt install nginx-extras -y
 cat <<CONFIG > /etc/nginx/sites-available/proxy_site
 upstream backend_servers {
-    server 10.0.4.100:443;
-    server 10.0.4.200:443;
+    server 10.216.4.100:443;
+    server 10.216.4.200:443;
 }
 
 server {
@@ -672,7 +672,7 @@ echo "${INSTANCE_NAME} created"
 INSTANCE_NAME="MYSQL-1"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PRIVATE1}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_MYSQL}"  # Security Group ID
-PRIVATE_IP="10.0.3.10"                # Private IP for the instance
+PRIVATE_IP="10.216.3.10"                # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
@@ -716,7 +716,7 @@ echo "${INSTANCE_NAME} created";
 INSTANCE_NAME="MYSQL-2"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PRIVATE1}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_MYSQL}"  # Security Group ID
-PRIVATE_IP="10.0.3.20"                # Private IP for the instance
+PRIVATE_IP="10.216.3.20"                # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
@@ -828,7 +828,7 @@ echo "RDS Endpoint: $RDS_ENDPOINT"
 INSTANCE_NAME="XMPP-1"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PRIVATE1}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_XMPP}"  # Security Group ID
-PRIVATE_IP="10.0.3.100"                # Private IP for the instance
+PRIVATE_IP="10.216.3.100"                # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
@@ -854,7 +854,7 @@ echo "${INSTANCE_NAME} created";
 INSTANCE_NAME="XMPP-2"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PRIVATE1}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_XMPP}"  # Security Group ID
-PRIVATE_IP="10.0.3.200"                # Private IP for the instance
+PRIVATE_IP="10.216.3.200"                # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
@@ -894,7 +894,7 @@ echo "${INSTANCE_NAME} created";
 INSTANCE_NAME="WORDPRESS-1"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PRIVATE2}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_WORDPRESS}"  # Security Group ID
-PRIVATE_IP="10.0.4.100"                # Private IP for the instance
+PRIVATE_IP="10.216.4.100"                # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
@@ -968,7 +968,7 @@ echo "${INSTANCE_NAME} created";
 INSTANCE_NAME="WORDPRESS-2"                 # Tag: Name of the EC2 instance
 SUBNET_ID="${SUBNET_PRIVATE2}"           # Subnet ID
 SECURITY_GROUP_ID="${SG_ID_WORDPRESS}"  # Security Group ID
-PRIVATE_IP="10.0.4.200"                # Private IP for the instance
+PRIVATE_IP="10.216.4.200"                # Private IP for the instance
 
 INSTANCE_TYPE="t2.micro"                # EC2 Instance Type
 KEY_NAME="${KEY_NAME}"                  # Name of the SSH Key Pair
